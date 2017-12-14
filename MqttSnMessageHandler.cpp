@@ -15,7 +15,9 @@ bool MqttSnMessageHandler::begin() {
     if(!logger->begin()){
         return false;
     }
-    return this->socketInterface->begin();
+    socketInterface->setLogger(logger);
+    socketInterface->setMqttSnMessageHandler(this);
+    return socketInterface->begin();
 }
 
 void MqttSnMessageHandler::setSocket(SocketInterface *socketInterface) {
@@ -83,7 +85,8 @@ bool MqttSnMessageHandler::send_Publish(device_address *destination, uint16_t pr
 void MqttSnMessageHandler::parse_advertise(device_address *source, uint8_t *bytes) {
     msg_advertise *msg = (msg_advertise *) bytes;
     if (msg->type == MQTTSN_ADVERTISE && msg->length == 5) {
-        handle_advertise(source, msg->gw_id, msg->duration, socketInterface->getLastMsgRssi());
+        //handle_advertise(source, msg->gw_id, msg->duration, socketInterface->getLastMsgRssi());
+        handle_advertise(source, msg->gw_id, msg->duration, 10);
     }
 }
 
@@ -101,14 +104,7 @@ void MqttSnMessageHandler::parse_pingreq(device_address *source, uint8_t *bytes)
 void MqttSnMessageHandler::send_Pingresp(device_address *destination) {
     message_header msg;
     msg.to_pingresp();
-    socketInterface->send(destination, msg, msg.length);
-}
-
-void MqttSnMessageHandler::parse_pingresp(device_address *source, uint8_t *bytes) {
-    message_header *msg = (message_header *) bytes;
-    if (msg->type == MQTTSN_PINGRESP && msg->length == 2) {
-        handle_pingresp(source, socketInterface->getLastMsgRssi());
-    }
+    socketInterface->send(destination, (uint8_t *) &msg, msg.length);
 }
 
 void MqttSnMessageHandler::parse_gwinfo(device_address *source, uint8_t *bytes, int16_t rssi) {
@@ -134,4 +130,11 @@ void MqttSnMessageHandler::handle_pingresp(device_address *source, int16_t rssi)
     simpleMqttSnClient->pingresp_received(source, rssi);
 }
 
+void MqttSnMessageHandler::parse_pingresp(device_address *source, uint8_t *bytes) {
+    message_header *msg = (message_header *) bytes;
+    if (msg->type == MQTTSN_PINGRESP && msg->length == 2) {
+        // handle_pingresp(source, socketInterface->getLastMsgRssi());
+        handle_pingresp(source, 10);
+    }
+}
 

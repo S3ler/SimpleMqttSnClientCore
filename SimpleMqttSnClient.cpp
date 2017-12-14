@@ -2,38 +2,44 @@
 // Created by bele on 11.12.17.
 //
 
+
 #include "SimpleMqttSnClient.h"
 
 bool SimpleMqttSnClient::begin() {
+    if (mqttSnMessageHandler == nullptr) {
+        return false;
+    }
     if (socketInterface == nullptr) {
         return false;
     }
-
-    if (!linuxLogger->begin()) {
+    if (loggerInterface == nullptr) {
+        return false;
+    }
+    if (!loggerInterface->begin()) {
         return false;
     }
 
-    memset(&pingreq_result, 0x0, sizeof(pingreq_info));
+    awaited_type = MQTTSN_PINGREQ;
+    memset(&pingreq_result, 0x0, sizeof(pingreq_result));
     awaited_advertisment = nullptr;
     memset(&received_advertisments, 0x0, sizeof(received_advertisments));
     memset(&received_gwinfos, 0x0, sizeof(received_gwinfos));
 
-    socketInterface->setMqttSnMessageHandler(&mqttSnMessageHandler);
-    socketInterface->setLogger(linuxLogger);
-
-    mqttSnMessageHandler.setSocket(socketInterface);
-    mqttSnMessageHandler.setSimpleMqttSnClient(this);
 
 
-    return mqttSnMessageHandler.begin();
+    mqttSnMessageHandler->setSocket(socketInterface);
+    mqttSnMessageHandler->setLogger(loggerInterface);
+    mqttSnMessageHandler->setSimpleMqttSnClient(this);
+
+
+    return mqttSnMessageHandler->begin();
 }
 
 void SimpleMqttSnClient::setSocketInterface(SocketInterface *socketInterface) {
     this->socketInterface = socketInterface;
 }
-
-void SimpleMqttSnClient::setLinuxLogger(LinuxLogger *linuxLogger) {
-    this->linuxLogger = linuxLogger;
+void SimpleMqttSnClient::setLoggerInterface(LoggerInterface *loggerInterface) {
+    this->loggerInterface = loggerInterface;
 }
 
 uint64_t SimpleMqttSnClient::ping_gateway(device_address *gateway) {
@@ -44,7 +50,7 @@ uint64_t SimpleMqttSnClient::ping_gateway(device_address *gateway, uint64_t time
     awaited_type = MQTTSN_PINGRESP;
     memset(&pingreq_result, 0x0, sizeof(pingreq_info));
 
-    if (mqttSnMessageHandler.send_PingReq(gateway)) {
+    if (mqttSnMessageHandler->send_PingReq(gateway)) {
         int64_t start = millis();
         while ((millis() - start) < timeout) {
             if (!loop()) {
@@ -104,7 +110,7 @@ device_address *SimpleMqttSnClient::search_gateway(uint64_t searchtime) {
     awaited_type = MQTTSN_GWINFO;
     memset(&received_gwinfos, 0x0, sizeof(received_gwinfos));
 
-    if (mqttSnMessageHandler.send_SearchGW()) {
+    if (mqttSnMessageHandler->send_SearchGW()) {
         int64_t start = millis();
         while ((millis() - start) < searchtime) {
             if (!loop()) {
@@ -133,13 +139,17 @@ device_address *SimpleMqttSnClient::search_gateway(uint64_t searchtime) {
 
 bool SimpleMqttSnClient::publish_m1(device_address *gateway, uint16_t predefined_topicId, bool retain, uint8_t *data,
                                     uint16_t data_length) {
-    return mqttSnMessageHandler.send_Publish(gateway, predefined_topicId, retain, data, data_length);
+    return mqttSnMessageHandler->send_Publish(gateway, predefined_topicId, retain, data, data_length);
 }
 
 bool SimpleMqttSnClient::loop() {
     // handle Advertisments only if we look for them
     // handle GatewayInfo only if we look for them
-    return mqttSnMessageHandler.loop();
+    return mqttSnMessageHandler->loop();
+}
+
+void SimpleMqttSnClient::setMqttSnMessageHandler(MqttSnMessageHandler *mqttSnMessageHandler) {
+    this->mqttSnMessageHandler = mqttSnMessageHandler;
 }
 
 void
@@ -278,6 +288,7 @@ void SimpleMqttSnClient::pingresp_received(device_address *source, int16_t rssi)
         awaited_type = MQTTSN_PINGREQ;
     }
 }
+
 
 
 

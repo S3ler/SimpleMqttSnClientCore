@@ -4,6 +4,7 @@
 
 #include "global_defines.h"
 #include <stdint.h>
+#include <cstring>
 
 #define PROTOCOL_ID 0x01
 

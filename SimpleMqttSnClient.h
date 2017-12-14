@@ -5,16 +5,21 @@
 #ifndef RASPBERRYPISIMPLEMQTTSNCLIENT_SIMPLEMQTTSNCLIENT_H
 #define RASPBERRYPISIMPLEMQTTSNCLIENT_SIMPLEMQTTSNCLIENT_H
 
-
+#include <cstring>
 #include <stdint-gcc.h>
-#include <lib/LinuxLogger.h>
+#include "LoggerInterface.h"
+#include "MqttSnMessageHandler.h"
 #include "global_defines.h"
 #include "SocketInterface.h"
 #include "mqttsn_messages.h"
-#include <RadioHeadRpi/RHutil/simulator.h>
+#include <arduino-linux-abstraction/src/Arduino.h>
+#include <wiringPi.h>
 
 #define advertisment_info_buffer_size 1
 #define gwinfo_info_buffer_size 5
+
+class SocketInterface;
+class MqttSnMessageHandler;
 
 struct pingreq_info {
     uint64_t received_timestamp = 0;
@@ -37,6 +42,7 @@ struct gwinfo_info {
 
 class SimpleMqttSnClient {
 
+public:
     /**
      * Initializes the SimpleMqttSnClient.
      * @return true if all components were initialized sucessfully else false.
@@ -50,11 +56,16 @@ class SimpleMqttSnClient {
     void setSocketInterface(SocketInterface *socketInterface);
 
     /**
-    * Sets the LinuxLogger used by the SimpleMqttSnClient.
-    * @param linuxLogger1 to set.
+    * Sets the LoggerInterface used by the SimpleMqttSnClient.
+    * @param loggerInterface to set.
     */
-    void setLinuxLogger(LinuxLogger *linuxLogger);
+    void setLoggerInterface(LoggerInterface *loggerInterface);
 
+    /**
+     * Sets the MqttSnMessageHandler to be used.
+     * @param mqttSnMessageHandler to set.
+     */
+    void setMqttSnMessageHandler(MqttSnMessageHandler *mqttSnMessageHandler);
     /**
      * Check the Round Trip Time between sending a PingReq and receiving a PingResp.
      * Uses the default timeout of 10 seconds.
@@ -123,8 +134,8 @@ class SimpleMqttSnClient {
 
 private:
     SocketInterface *socketInterface = nullptr;
-    LinuxLogger *linuxLogger = nullptr;
-    MqttSnMessageHandler mqttSnMessageHandler;
+    LoggerInterface *loggerInterface = nullptr;
+    MqttSnMessageHandler* mqttSnMessageHandler = nullptr;
 
     message_type awaited_type = MQTTSN_PINGREQ;
 
@@ -146,6 +157,7 @@ public:
     void insert_into_received_gwinfos(device_address *gateway, uint8_t gw_id, int16_t rssi);
 
     void pingresp_received(device_address *source, int16_t rssi);
+
 };
 
 
