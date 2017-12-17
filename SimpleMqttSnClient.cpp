@@ -116,20 +116,23 @@ device_address *SimpleMqttSnClient::search_gateway(uint64_t searchtime) {
             if (!loop()) {
                 break;
             }
-            if (awaited_type != MQTTSN_GWINFO) {
-                // find the one wit the highest RSSI
-                int16_t max_rssi = INT16_MIN;
-                gwinfo_info *result = nullptr;
-                for (uint8_t i = 0; i < gwinfo_info_buffer_size; i++) {
-                    gwinfo_info *info = &received_gwinfos[i];
-                    if (info->rssi > max_rssi) {
-                        result = info;
-                        max_rssi = result->rssi;
-                    }
+        }
+    }
+
+    if (awaited_type != MQTTSN_GWINFO) {
+        // find the one wit the highest RSSI and not empty
+        int16_t max_rssi = INT16_MIN;
+        gwinfo_info *result = nullptr;
+        for (uint8_t i = 0; i < gwinfo_info_buffer_size; i++) {
+            gwinfo_info *info = &received_gwinfos[i];
+            if(info->gw_id != 0){
+                if (info->rssi > max_rssi) {
+                    result = info;
+                    max_rssi = result->rssi;
                 }
-                return &result->address;
             }
         }
+        return &result->address;
     }
     if (awaited_type == MQTTSN_GWINFO) {
         awaited_type = MQTTSN_PINGREQ;
@@ -154,7 +157,6 @@ void SimpleMqttSnClient::setMqttSnMessageHandler(MqttSnMessageHandler *mqttSnMes
 
 void
 SimpleMqttSnClient::advertise_received(device_address *gateway, uint8_t gw_id, uint16_t duration, int16_t rssi) {
-
     uint64_t current_millis = millis();
 
     for (uint8_t i = 0; i < advertisment_info_buffer_size; i++) {
@@ -221,6 +223,9 @@ SimpleMqttSnClient::advertise_received(device_address *gateway, uint8_t gw_id, u
 
 void SimpleMqttSnClient::gwinfo_received(device_address *gateway, uint8_t gw_id, int16_t rssi) {
     insert_into_received_gwinfos(gateway, gw_id, rssi);
+    if(awaited_advertisment == MQTTSN_GWINFO){
+        awaited_type = MQTTSN_PINGREQ;
+    }
 }
 
 void
@@ -229,15 +234,20 @@ SimpleMqttSnClient::gwinfo_received(device_address *source, uint8_t gw_id, devic
         // we do not accept gw_id which are 0
         return;
     }
+
     if (memcmp(source, gw_address, sizeof(device_address)) == 0) {
         insert_into_received_gwinfos(source, gw_id, rssi);
     } else {
         // source and msg address do not match
         // we ignore these packets at the moment
     }
+    if(awaited_advertisment == MQTTSN_GWINFO){
+        awaited_type = MQTTSN_PINGREQ;
+    }
 }
 
 void SimpleMqttSnClient::insert_into_received_gwinfos(device_address *gateway, uint8_t gw_id, int16_t rssi) {
+
     uint64_t current_millis = millis();
     for (uint8_t i = 0; i < gwinfo_info_buffer_size; i++) {
         gwinfo_info *info = &received_gwinfos[i];
@@ -249,9 +259,10 @@ void SimpleMqttSnClient::insert_into_received_gwinfos(device_address *gateway, u
             return;
         }
     }
+
     for (uint8_t i = 0; i < gwinfo_info_buffer_size; i++) {
         gwinfo_info *info = &received_gwinfos[i];
-        if (gw_id == 0) {
+        if (info->gw_id == 0) {
             // empty entry, insert
             info->received_timestamp = current_millis;
             memcpy(&info->address, gateway, sizeof(device_address));
@@ -260,9 +271,10 @@ void SimpleMqttSnClient::insert_into_received_gwinfos(device_address *gateway, u
             return;
         }
     }
+
     // gwinfos buffer full
     // find entry with minimum rssi
-    uint8_t min_index = gwinfo_info_buffer_size;
+    uint8_t min_index = 0;
     int16_t min_rssi = INT16_MAX;
     for (uint8_t i = 0; i < gwinfo_info_buffer_size; i++) {
         gwinfo_info *info = &received_gwinfos[i];

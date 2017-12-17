@@ -34,26 +34,51 @@ void MqttSnMessageHandler::setSimpleMqttSnClient(SimpleMqttSnClient *simpleMqttS
 
 void MqttSnMessageHandler::receiveData(device_address *address, uint8_t *bytes) {
     message_header *header = (message_header *) bytes;
+    /*
+    std::cout << "receiveData" << std::endl;
+    std::cout << "bytes { ";
+    for (uint8_t i = 0; i < bytes[0]; i++) {
+        if(i==0){
+            std::string number_str = std::to_string(bytes[i]);
+            std::cout << number_str.c_str();
+        } else {
+            std::string number_str = std::to_string(bytes[i]);
+            std::cout << number_str.c_str();
+          }
+
+        if (i == bytes[0] - 1) {
+            std::cout << " }";
+        } else {
+             std::cout <<", ";
+        }
+    }
+    std::cout << "" << std::endl;
+    */
     if (header->length < 2) {
         return;
     }
     switch (header->type) {
 
         case MQTTSN_ADVERTISE:
+            // std::cout << "MQTTSN_ADVERTISE" << std::endl;
             parse_advertise(address, bytes);
             break;
         case MQTTSN_PINGREQ:
+            // std::cout << "MQTTSN_PINGREQ" << std::endl;
             parse_pingreq(address, bytes);
             break;
         case MQTTSN_PINGRESP:
+            // std::cout << "MQTTSN_PINGRESP" << std::endl;
             parse_pingresp(address, bytes);
             break;
         case MQTTSN_GWINFO:
+            // std::cout << "MQTTSN_GWINFO" << std::endl;
             parse_gwinfo(address, bytes, 0);
             break;
         default:
             break;
     }
+
 }
 
 bool MqttSnMessageHandler::loop() {
@@ -61,8 +86,9 @@ bool MqttSnMessageHandler::loop() {
 }
 
 bool MqttSnMessageHandler::send_PingReq(device_address *destination) {
-    msg_pingreq msg;
-    msg.init_msg_pingreq(&msg, nullptr);
+    message_header msg;
+    msg.length = 2;
+    msg.type = MQTTSN_PINGREQ;
     return socketInterface->send(destination, (uint8_t *) &msg, msg.length);
 }
 
@@ -78,7 +104,7 @@ bool MqttSnMessageHandler::send_Publish(device_address *destination, uint16_t pr
         return false;
     }
     msg_publish msg = msg_publish(false, -1, retain, false, predefined_topicId,
-                                  0x01, payload, (uint8_t) payload_length);
+                                  0x00, payload, (uint8_t) payload_length);
     return socketInterface->send(destination, (uint8_t *) &msg, msg.length);
 }
 
