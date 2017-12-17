@@ -223,7 +223,7 @@ SimpleMqttSnClient::advertise_received(device_address *gateway, uint8_t gw_id, u
 
 void SimpleMqttSnClient::gwinfo_received(device_address *gateway, uint8_t gw_id, int16_t rssi) {
     insert_into_received_gwinfos(gateway, gw_id, rssi);
-    if(awaited_advertisment == MQTTSN_GWINFO){
+    if(awaited_type == MQTTSN_GWINFO){
         awaited_type = MQTTSN_PINGREQ;
     }
 }
@@ -241,7 +241,7 @@ SimpleMqttSnClient::gwinfo_received(device_address *source, uint8_t gw_id, devic
         // source and msg address do not match
         // we ignore these packets at the moment
     }
-    if(awaited_advertisment == MQTTSN_GWINFO){
+    if(awaited_type == MQTTSN_GWINFO){
         awaited_type = MQTTSN_PINGREQ;
     }
 }
